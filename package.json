@@ -1,0 +1,24 @@
+{
+  "name": "neuropilot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dhairy18/NeuroPilot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dhairy18/NeuroPilot/issues"
+  },
+  "homepage": "https://github.com/dhairy18/NeuroPilot#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.4.2"
+  }
+}

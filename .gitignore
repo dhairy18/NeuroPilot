@@ -1,0 +1,30 @@
+# ============================================
+# NeuroPilot — Git Ignore Rules
+#
+# This file tells Git: "Do NOT upload these files/folders."
+# Anything listed here stays on YOUR computer only.
+# ============================================
+
+# --- Secret files (NEVER upload API keys!) ---
+.env
+gemini api key.txt
+
+# --- Node.js dependencies (downloaded via npm install, can be re-downloaded) ---
+node_modules/
+
+# --- Vercel local cache ---
+.vercel/
+
+# --- Personal study/review files ---
+study/
+review/
+
+# --- OS junk files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor settings (personal preferences, not project code) ---
+.vscode/
+*.swp
+*.swo

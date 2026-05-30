@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!-- 
+  This tells the browser: "I'm a modern HTML5 page."
+  Without it, old browsers might render things weirdly.
+-->
+
+<html lang="en">
+<!-- 
+  lang="en" tells screen readers and Google: "This page is in English."
+  Helps with accessibility and SEO (search engine ranking).
+-->
+
+<head>
+  <!--
+    The <head> section is INVISIBLE to users.
+    It contains setup info that the browser and search engines need:
+    - What character set to use (UTF-8 = supports all languages + emojis)
+    - How to display on mobile phones
+    - What to show in Google search results
+    - What fonts and stylesheets to load
+  -->
+  <meta charset="UTF-8">
+
+  <!-- Without this, phones would show a zoomed-out desktop version -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- This text appears under our link in Google search results -->
+  <meta name="description"
+    content="NeuroPilot — your AI-powered focus companion for ADHD. Stay on track with a friendly avatar that keeps you accountable.">
+
+  <!-- This text appears on the browser tab -->
+  <title>NeuroPilot — Your Focus Companion</title>
+
+  <!-- 
+    Load the "Inter" font from Google Fonts.
+    - "preconnect" = tell the browser to start connecting early (speeds things up)
+    - The long URL downloads the font in weights 300–700
+    - Without this, we'd get boring default fonts like Times New Roman
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Link to our CSS file — this is where all the visual styling lives -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <!--
+    Everything inside <body> is what the user ACTUALLY SEES on the page.
+    We have one single screen with:
+    1. A status label ("Ready when you are" / "Focusing")
+    2. The animated orb (our AI avatar)
+    3. The app title + subtitle
+    4. A text input + "Let's go" button
+  -->
+
+  <!-- 
+    <main> = "this is the primary content of the page" 
+    - id="app" → JavaScript can find this container by its unique ID
+    - class="app-container" → CSS uses this to center everything on screen
+  -->
+  <main id="app" class="app-container">
+
+    <!-- 
+      STATUS LABEL — shows above the orb
+      - Starts as "Ready when you are"
+      - JavaScript changes it to "Focusing" when a session starts
+      - id="status-label" → so JavaScript can find and update it
+    -->
+    <p id="status-label" class="status-label">Ready when you are</p>
+
+    <!-- 
+      ORB + SPEECH BUBBLE CONTAINER
+      
+      We wrap the orb and speech bubble together so the bubble can be
+      positioned relative to the orb (using CSS position: absolute).
+      Think of this container as a stage — the orb is center stage,
+      and the speech bubble appears to its right.
+    -->
+    <div id="orb-and-bubble" class="orb-and-bubble">
+
+      <!-- 
+        THE AVATAR ORB — built from 4 layers stacked on top of each other:
+        
+        Layer 1: orb-glow    → blurry colorful blob BEHIND the orb (the "aura")
+        Layer 2: orb         → the spinning colorful ring itself
+        Layer 3: orb-inner   → dark circle INSIDE the ring (creates hollow look)
+        Layer 4: orb-ring    → faint circle AROUND the orb (orbiting halo)
+        
+        The wrapper holds all layers together and gets CSS classes added/removed
+        by JavaScript to switch between idle and focus animations.
+      -->
+      <div id="orb-wrapper" class="orb-wrapper">
+        <div class="orb-glow"></div>
+        <div id="orb" class="orb">
+          <div class="orb-inner"></div>
+        </div>
+        <div class="orb-ring"></div>
+      </div>
+
+      <!-- 
+        SPEECH BUBBLE — Claude's response appears here.
+        
+        Starts HIDDEN (display: none). JavaScript shows it after Claude responds.
+        
+        Parts:
+        - speech-bubble-pointer → the little triangle pointing at the orb
+        - typing-indicator      → three bouncing dots shown while waiting for Claude
+        - speech-bubble-text    → the actual response text from Claude
+      -->
+      <div id="speech-bubble" class="speech-bubble" style="display: none;">
+        <div class="speech-bubble-pointer"></div>
+        <div id="typing-indicator" class="typing-indicator">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+        <p id="speech-bubble-text" class="speech-bubble-text"></p>
+      </div>
+
+    </div><!-- end orb-and-bubble -->
+
+    <!-- 
+      APP TITLE — uses <h1> because it's the most important heading.
+      Google uses <h1> to understand what the page is about.
+      CSS gives it a gradient color (blue → purple).
+    -->
+    <h1 id="app-title" class="app-title">NeuroPilot</h1>
+
+    <!-- 
+      SUBTITLE — short tagline below the title.
+      - id="app-subtitle" → JavaScript hides this during focus mode
+        (We gave it an id so we can use getElementById instead of querySelector.
+         See app.js for why that's simpler.)
+    -->
+    <p id="app-subtitle" class="app-subtitle">Your AI focus companion</p>
+
+    <!-- 
+      TASK INPUT AREA — where the user types what they're working on
+      
+      - type="text"        → it's a text field (not password, checkbox, etc.)
+      - placeholder="..."  → gray hint text that disappears when you start typing
+      - autocomplete="off" → don't suggest stuff from browser history
+      - maxlength="120"    → can't type more than 120 characters
+      - disabled           → the button starts grayed out and unclickable.
+                             JavaScript removes "disabled" once the user types something.
+    -->
+    <div id="input-area" class="input-area">
+      <input type="text" id="task-input" class="task-input" placeholder="What are you working on today?"
+        autocomplete="off" maxlength="120">
+      <button id="start-btn" class="start-btn" disabled>
+        Let's go
+      </button>
+    </div>
+
+  </main>
+
+  <!-- 
+    Load our JavaScript file LAST (after all HTML is ready).
+    This way, when app.js tries to find elements like #task-input,
+    they already exist in the page.
+  -->
+  <script src="js/app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,875 @@
+/* ============================================
+   NEUROPILOT — STYLE SHEET
+   
+   FILE MAP (what's in this file, in order):
+   1. RESET & BASE     — Clear browser defaults, set dark background
+   2. CSS VARIABLES     — Reusable colors and sizes (change once, updates everywhere)
+   3. APP CONTAINER     — Centers everything vertically and horizontally
+   4. STATUS LABEL      — Small text above the orb
+   5. ORB (4 layers)    — The animated avatar: glow, ring, inner circle, outer ring
+   6. TYPOGRAPHY        — Title and subtitle styling
+   7. INPUT AREA        — Text box and "Let's go" button
+   8. IDLE ANIMATIONS   — Energetic spinning/pulsing for the waiting state
+   9. FOCUS ANIMATIONS  — Calm breathing/slow spin for the working state
+   10. RESPONSIVE       — Adjustments for small screens
+   ============================================ */
+
+
+/* ==========================================================
+   1. RESET & BASE
+   
+   Browsers add their own default margins, padding, and sizing
+   to elements. This removes ALL of that so we start from a
+   clean slate. Think of it as clearing a messy desk before
+   you start organizing.
+   ========================================================== */
+*,
+*::before,
+*::after {
+  margin: 0;          /* Remove all outer spacing */
+  padding: 0;         /* Remove all inner spacing */
+  box-sizing: border-box;  
+  /* 
+    Without this: a 160px box with a 2px border = 164px total.
+    With this:    a 160px box with a 2px border = 160px total.
+    Makes sizes predictable.
+  */
+}
+
+
+/* ==========================================================
+   2. CSS VARIABLES (Design Tokens)
+   
+   These are reusable names for colors and sizes.
+   Instead of typing "#4285f4" in 20 places (and risking a typo),
+   we type var(--accent-blue) everywhere.
+   
+   If you want to change the blue, change it ONCE here →
+   it updates everywhere automatically.
+   
+   Like changing a contact name in your phone — it updates
+   in every chat conversation.
+   ========================================================== */
+:root {
+  /* ---- Colors ---- */
+  --bg-primary:      #0a0a0f;    /* Main background — very dark blue-black */
+  --bg-secondary:    #12121a;    /* Slightly lighter background for contrast */
+  --text-primary:    #e8e8ed;    /* Main text — off-white (pure white is too harsh) */
+  --text-secondary:  #8888a0;    /* Dimmer text — for subtitles and hints */
+  --accent-blue:     #4285f4;    /* Google blue */
+  --accent-red:      #ea4335;    /* Google red (idle orb only) */
+  --accent-yellow:   #fbbc04;    /* Google yellow (idle orb only) */
+  --accent-green:    #34a853;    /* Google green (reserved for future use) */
+  --accent-purple:   #a855f7;    /* Purple — used in gradients */
+  --input-bg:        #1a1a28;    /* Text input background */
+  --input-border:    #2a2a3d;    /* Text input border (subtle) */
+  --input-focus:     #4285f4;    /* Border color when input is clicked/focused */
+
+  /* ---- Gradients ---- */
+  --btn-gradient:    linear-gradient(135deg, #4285f4, #a855f7);  /* Button: blue → purple */
+  --btn-hover:       linear-gradient(135deg, #5a9cf5, #b86ef8);  /* Button on hover: lighter */
+
+  /* 
+    The orb's idle gradient — 4 Google-style colors arranged in a circle.
+    "conic-gradient" paints colors like a pie chart (in a circle).
+    The orb spins this gradient to create the swirl effect.
+  */
+  --orb-gradient: conic-gradient(
+    from 0deg,
+    #4285f4 0%,      /* blue at 12 o'clock */
+    #a855f7 25%,     /* purple at 3 o'clock */
+    #ea4335 50%,     /* red at 6 o'clock */
+    #fbbc04 75%,     /* yellow at 9 o'clock */
+    #4285f4 100%     /* back to blue (seamless loop) */
+  );
+
+  /* ---- Sizes ---- */
+  --orb-size:    160px;   /* The main orb diameter */
+  --glow-size:   260px;   /* The blurry glow behind the orb (bigger than the orb) */
+  --ring-size:   210px;   /* The orbiting ring around the orb */
+}
+
+
+/* ---- Font & Body ---- */
+html {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* 
+    Try "Inter" first (from Google Fonts). If it hasn't loaded yet, 
+    fall back to the system font, then Apple's font, then any sans-serif.
+  */
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;  /* Makes text look crisper on Mac/Chrome */
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;   /* Take up at least the full screen height */
+  overflow: hidden;    /* No scrollbar — it's a single-screen app */
+}
+
+/* 
+  Subtle colored gradients in the background.
+  Creates a very faint blue glow at the top and purple glow at the bottom.
+  "pointer-events: none" = you can click through it (it's just decoration).
+*/
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;   /* Shorthand for top:0, right:0, bottom:0, left:0 */
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(66, 133, 244, .12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(168, 85, 247, .08), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+
+/* ==========================================================
+   3. APP CONTAINER
+   
+   Flexbox layout that centers all children vertically and
+   horizontally. Like centering a poster on a wall.
+   ========================================================== */
+.app-container {
+  position: relative;
+  z-index: 1;              /* Sit above the background gradient */
+  display: flex;           /* Use Flexbox layout */
+  flex-direction: column;  /* Stack children top-to-bottom */
+  align-items: center;     /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  min-height: 100vh;       /* Take up the full screen */
+  padding: 2rem;           /* 2rem = 32px breathing room on edges */
+  gap: 0;
+}
+
+
+/* ==========================================================
+   4. STATUS LABEL
+   
+   Small uppercase text above the orb.
+   Shows "READY WHEN YOU ARE" in idle, "FOCUSING" during work.
+   JavaScript changes its text content.
+   ========================================================== */
+.status-label {
+  font-size: 0.8rem;          /* Small text (0.8 × 16px = 12.8px) */
+  font-weight: 500;           /* Medium weight */
+  letter-spacing: 0.15em;     /* Spread letters apart — looks clean in uppercase */
+  text-transform: uppercase;  /* Force ALL CAPS regardless of what's typed */
+  color: var(--text-secondary);
+  margin-bottom: 2rem;        /* Space between label and orb */
+  opacity: 0;                 /* Start invisible (entrance animation will fade it in) */
+  animation: fadeInDown 0.8s 0.4s ease forwards;
+  /* 
+    fadeInDown = slide down from above while fading in
+    0.8s       = takes 0.8 seconds
+    0.4s       = wait 0.4 seconds before starting (so it enters after page loads)
+    ease       = start slow, speed up, slow down at end
+    forwards   = stay at the final state (visible) after animation ends
+  */
+}
+
+
+/* ==========================================================
+   5. ORB — The Animated Avatar
+   
+   Built from 4 layers stacked using position: absolute:
+   
+   Back  →  orb-glow   (blurry colorful aura)
+          →  orb        (the spinning gradient ring)
+          →  orb-inner  (dark center — makes it hollow)
+   Front →  orb-ring   (faint orbiting circle)
+   ========================================================== */
+
+/* The wrapper holds all 4 layers and is the target for
+   JavaScript's classList.add('focusing') / .add('activating') */
+.orb-wrapper {
+  position: relative;          /* Needed so absolute children position relative to this */
+  width: var(--orb-size);
+  height: var(--orb-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+/* --- Layer 1: Glow (the blurry aura behind the orb) --- */
+.orb-glow {
+  position: absolute;            /* Stack on top of other layers */
+  width: var(--glow-size);       /* Bigger than the orb */
+  height: var(--glow-size);
+  border-radius: 50%;            /* Make it a circle */
+  background: var(--orb-gradient);
+  filter: blur(60px);            /* Heavy blur = soft glowing effect */
+  opacity: 0.35;                 /* Semi-transparent */
+  animation: glowPulse 4s ease-in-out infinite;  /* Breathes in idle mode */
+}
+
+/* --- Layer 2: Main Orb (the spinning gradient ring) --- */
+.orb {
+  position: relative;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  border-radius: 50%;
+  background: var(--orb-gradient);   /* The conic gradient (blue→purple→red→yellow) */
+  animation: orbSpin 6s linear infinite;  /* Spins 360° every 6 seconds */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Layer 3: Inner Dark Circle (creates the hollow "portal" look) --- */
+.orb-inner {
+  width: calc(var(--orb-size) - 16px);   /* 16px smaller than the orb = 8px ring thickness */
+  height: calc(var(--orb-size) - 16px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%,
+    #1e1e30 0%,       /* Slightly lighter center-left (subtle 3D lighting) */
+    #0e0e1a 60%,
+    #0a0a0f 100%      /* Matches page background at edges */
+  );
+  animation: breathe 4s ease-in-out infinite;  /* Gently grows and shrinks */
+}
+
+/* --- Layer 4: Orbiting Ring (faint halo around the orb) --- */
+.orb-ring {
+  position: absolute;
+  width: var(--ring-size);       /* Bigger than the orb */
+  height: var(--ring-size);
+  border-radius: 50%;
+  border: 1.5px solid rgba(66, 133, 244, 0.15);  /* Very faint blue border */
+  animation: ringPulse 4s ease-in-out infinite;   /* Pulses in and out */
+}
+
+
+/* ==========================================================
+   5b. ORB + SPEECH BUBBLE CONTAINER
+   
+   This container wraps both the orb and the speech bubble so
+   the bubble can be positioned relative to the orb.
+   Think of it like a stage — the orb is center stage, and
+   the speech bubble floats nearby.
+   ========================================================== */
+.orb-and-bubble {
+  position: relative;          /* So the speech bubble can use position: absolute */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  /* 
+    We DON'T set a fixed width — the container naturally wraps
+    around the orb. The speech bubble overflows to the side.
+  */
+}
+
+
+/* ==========================================================
+   5c. SPEECH BUBBLE — Claude's Response
+   
+   A glassmorphism-styled chat bubble that appears to the right
+   of the orb (or below on mobile). It has:
+   - A frosted glass background
+   - A triangle "pointer" pointing at the orb
+   - Typing dots animation (shown while waiting for Claude)
+   - Fade-in entrance animation
+   
+   DESIGN CHOICE: Glassmorphism (semi-transparent + blur) makes
+   the bubble feel like it's part of the dark UI, not a jarring
+   white popup. It's modern, premium, and non-distracting.
+   ========================================================== */
+.speech-bubble {
+  position: absolute;
+  left: calc(100% + 24px);     /* 24px to the RIGHT of the orb container */
+  top: 50%;                    /* Vertically centered with the orb */
+  transform: translateY(-50%); /* Offset by half its height to truly center */
+  
+  /* Glassmorphism effect */
+  background: rgba(26, 26, 42, 0.85);   /* Dark semi-transparent */
+  backdrop-filter: blur(16px);           /* Blurs whatever is behind it */
+  -webkit-backdrop-filter: blur(16px);   /* Safari support */
+  
+  border: 1px solid rgba(66, 133, 244, 0.15);  /* Subtle blue border */
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  
+  width: 280px;                /* Fixed width so text wraps nicely */
+  
+  /* Shadow for depth */
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03);   /* Hairline inner highlight */
+  
+  /* Entrance animation */
+  opacity: 0;
+  animation: bubbleFadeIn 0.5s 0.2s ease forwards;
+  
+  z-index: 10;  /* Sit above other elements */
+}
+
+/* 
+  The little TRIANGLE that points from the bubble toward the orb.
+  Created using CSS borders trick — a box with 0 width/height where
+  only one border is visible, forming a triangle.
+*/
+.speech-bubble-pointer {
+  position: absolute;
+  left: -8px;                  /* Sticks out 8px to the left of the bubble */
+  top: 50%;
+  transform: translateY(-50%);
+  
+  /* CSS triangle trick using borders */
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;      /* Top half: invisible */
+  border-bottom: 8px solid transparent;   /* Bottom half: invisible */
+  border-right: 8px solid rgba(26, 26, 42, 0.85);  /* Right side: visible = triangle points left */
+}
+
+
+/* ----------------------------------------------------------
+   TYPING INDICATOR — Three Bouncing Dots
+   
+   Shown while waiting for Claude's response.
+   Each dot bounces up and down with a slight delay,
+   creating a wave-like "thinking" animation.
+   ---------------------------------------------------------- */
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 4px 0;
+}
+
+/* Each individual dot */
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  opacity: 0.5;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+/* Stagger the dots so they bounce one after another (wave effect) */
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;   /* 2nd dot starts 0.2s later */
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;   /* 3rd dot starts 0.4s later */
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0);    opacity: 0.3; }
+  30%           { transform: translateY(-8px);  opacity: 0.8; }
+  /* Each dot: rests → jumps up → falls back → rests */
+}
+
+/* When typing is hidden (Claude has responded), collapse it */
+.typing-indicator.hidden {
+  display: none;
+}
+
+
+/* --- Speech bubble text (Claude's actual response) --- */
+.speech-bubble-text {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* When text hasn't loaded yet, hide it (typing dots are showing instead) */
+.speech-bubble-text:empty {
+  display: none;
+}
+
+
+/* --- Speech bubble animations --- */
+
+/* Fade in + slide from the left when bubble appears */
+@keyframes bubbleFadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-50%) translateX(-12px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(-50%) translateX(0); 
+  }
+}
+
+/* Fade out when bubble is dismissed */
+.speech-bubble.dismissing {
+  animation: bubbleFadeOut 0.3s ease forwards;
+}
+
+@keyframes bubbleFadeOut {
+  from { 
+    opacity: 1; 
+    transform: translateY(-50%) translateX(0); 
+  }
+  to { 
+    opacity: 0; 
+    transform: translateY(-50%) translateX(12px); 
+  }
+}
+
+
+/* ==========================================================
+   6. TYPOGRAPHY — Title and Subtitle
+   ========================================================== */
+.app-title {
+  font-size: 2.2rem;
+  font-weight: 700;             /* Bold */
+  letter-spacing: -0.02em;      /* Slightly tighter letters (looks modern) */
+  /* Gradient text: paint the text with a blue→purple gradient */
+  background: var(--btn-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;  /* Hide the solid text color, show the gradient */
+  margin-bottom: 0.35rem;
+  opacity: 0;
+  animation: fadeInUp 0.8s 0.6s ease forwards;  /* Enters 0.6s after page load */
+}
+
+.app-subtitle {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  animation: fadeInUp 0.8s 0.8s ease forwards;  /* Enters 0.8s after page load */
+}
+
+
+/* ==========================================================
+   7. INPUT AREA — Text box + "Let's go" button
+   ========================================================== */
+.input-area {
+  display: flex;           /* Side by side: [input] [button] */
+  gap: 0.75rem;            /* 12px space between input and button */
+  width: 100%;
+  max-width: 480px;        /* Don't stretch wider than 480px */
+  opacity: 0;
+  animation: fadeInUp 0.8s 1s ease forwards;  /* Enters last (1s after page load) */
+}
+
+/* The text input where users type their task */
+.task-input {
+  flex: 1;                 /* Take up all remaining space next to the button */
+  padding: 0.85rem 1.25rem;
+  font-family: inherit;    /* Use the same Inter font as the rest of the page */
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 14px;     /* Rounded corners */
+  outline: none;           /* Remove the ugly default focus outline */
+  transition: border-color 0.3s, box-shadow 0.3s;  /* Smooth color change on focus */
+}
+
+/* The gray hint text inside the empty input */
+.task-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* When the user clicks into the input */
+.task-input:focus {
+  border-color: var(--input-focus);  /* Blue border */
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.15);  /* Soft blue outer glow */
+}
+
+/* The "Let's go" button */
+.start-btn {
+  padding: 0.85rem 1.6rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--btn-gradient);  /* Blue → purple gradient */
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: opacity 0.3s, transform 0.15s, box-shadow 0.3s;
+  white-space: nowrap;     /* Keep "Let's go" on one line even on small screens */
+}
+
+/* When the button is disabled (no text typed yet) */
+.start-btn:disabled {
+  opacity: 0.35;           /* Grayed out */
+  cursor: not-allowed;     /* Show "🚫" cursor */
+}
+
+/* When the button is enabled and hovered */
+.start-btn:not(:disabled):hover {
+  background: var(--btn-hover);      /* Slightly lighter gradient */
+  transform: translateY(-1px);       /* Float up 1px (feels clickable) */
+  box-shadow: 0 6px 24px rgba(66, 133, 244, 0.3);  /* Shadow below */
+}
+
+/* When the button is being clicked (pressed down) */
+.start-btn:not(:disabled):active {
+  transform: translateY(0);          /* Snap back down (tactile feedback) */
+}
+
+
+/* ==========================================================
+   8. IDLE STATE ANIMATIONS
+   
+   These play when the app is waiting for the user to start.
+   They're ENERGETIC: fast spin, big pulses, vibrant colors.
+   Purpose: grab attention and invite interaction.
+   ========================================================== */
+
+/* Orb spins its conic gradient — full 360° rotation */
+@keyframes orbSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Inner circle grows and shrinks (breathing effect) */
+@keyframes breathe {
+  0%, 100% { transform: scale(1);    }   /* Normal size at start and end */
+  50%      { transform: scale(0.92); }   /* Shrink to 92% at halfway point */
+}
+
+/* Glow blob pulses bigger and brighter */
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.3;  transform: scale(1);   }   /* Dim and normal size */
+  50%      { opacity: 0.5;  transform: scale(1.15); }   /* Brighter and 15% bigger */
+}
+
+/* Orbiting ring expands and contracts */
+@keyframes ringPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1);    }
+  50%      { opacity: 0.15; transform: scale(1.08); }   /* Fades out as it grows */
+}
+
+/* Page entrance: element slides UP from below while fading in */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }   /* Start: invisible, 16px below */
+  to   { opacity: 1; transform: translateY(0);    }   /* End: visible, in position */
+}
+
+/* Page entrance: element slides DOWN from above while fading in */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+
+
+/* ==========================================================
+   9. FOCUS STATE — Psychologically Calm Animations
+   
+   These replace the idle animations when the user starts working.
+   
+   PSYCHOLOGY BEHIND EACH CHOICE:
+   • Slow rotation (20s instead of 6s)
+     → Fast movement grabs attention. Slow = peripheral calm presence.
+   
+   • Blue-purple only (removed red & yellow)
+     → Red triggers fight-or-flight. Yellow grabs attention.
+       Blue lowers heart rate. Purple adds warmth without alertness.
+   
+   • Deep breathing (6s cycle instead of 4s)
+     → 6 seconds = 10 breaths/minute = clinically studied "relaxation zone."
+       The user's body unconsciously syncs to the rhythm.
+   
+   • Steady glow (tiny 5% pulse instead of 15%)
+     → Predictability reduces ADHD anxiety. Wild movement = unsettling.
+   
+   • Brief activation flash before calm state
+     → Dopamine reward for starting a task. ADHD brains struggle with
+       "task initiation" — so we celebrate the click with a visual "yes!"
+   ========================================================== */
+
+/* ----------------------------------------------------------
+   9a. ACTIVATION FLASH (plays ONCE when user clicks "Let's go")
+   
+   Lasts 0.8 seconds. The orb briefly gets bigger and brighter,
+   like a camera flash or a video game power-up effect.
+   After this finishes, JavaScript switches to the calm state.
+   ---------------------------------------------------------- */
+
+/* Flash on the main orb */
+.orb-wrapper.activating .orb {
+  animation: activationFlash 0.8s ease-out forwards;
+}
+
+@keyframes activationFlash {
+  0%   { transform: scale(1);    filter: brightness(1);   }   /* Normal */
+  30%  { transform: scale(1.15); filter: brightness(1.8); }   /* PEAK: big + bright (fast!) */
+  100% { transform: scale(1);    filter: brightness(1);   }   /* Settle back to normal */
+  /* Peak at 30% (not 50%) because a fast burst that slowly
+     settles feels more satisfying than a symmetric in-out */
+}
+
+/* Flash on the glow behind the orb */
+.orb-wrapper.activating .orb-glow {
+  animation: activationGlow 0.8s ease-out forwards;
+}
+
+@keyframes activationGlow {
+  0%   { opacity: 0.35; transform: scale(1);   }
+  30%  { opacity: 0.8;  transform: scale(1.4); }   /* Glow flares out bigger than the orb */
+  100% { opacity: 0.35; transform: scale(1);   }
+}
+
+
+/* ----------------------------------------------------------
+   9b. CALM FOCUS STATE
+   
+   Applied by JavaScript AFTER the activation flash finishes.
+   Everything becomes slower, calmer, and blue-purple only.
+   All animations sync to the same 6-second rhythm.
+   ---------------------------------------------------------- */
+
+/* Orb: slow spin + calmer gradient (blue ↔ purple only) */
+.orb-wrapper.focusing .orb {
+  background: conic-gradient(
+    from 0deg,
+    #4285f4 0%,       /* blue */
+    #7b68ee 30%,      /* medium slate blue */
+    #a855f7 50%,      /* purple */
+    #7b68ee 70%,      /* medium slate blue */
+    #4285f4 100%      /* back to blue */
+  );
+  animation: orbSpin 20s linear infinite;   /* 20s per rotation (was 6s) */
+  transition: background 1.5s ease;         /* Smooth color morph over 1.5s */
+}
+
+/* Inner circle: deeper, slower breathing with a HOLD at the bottom */
+.orb-wrapper.focusing .orb-inner {
+  animation: focusBreathe 6s ease-in-out infinite;
+}
+
+@keyframes focusBreathe {
+  0%, 100% { transform: scale(1);    }   /* Full size (inhale) */
+  40%      { transform: scale(0.88); }   /* Shrink (exhale) */
+  60%      { transform: scale(0.88); }   /* HOLD — like a real calm exhale pause */
+  /* The 40%–60% hold is the key difference from idle breathe.
+     It mimics a natural relaxed breath where you exhale and pause. */
+}
+
+/* Glow: steady and calmer — barely pulsing */
+.orb-wrapper.focusing .orb-glow {
+  background: conic-gradient(
+    from 0deg,
+    #4285f4 0%,
+    #7b68ee 30%,
+    #a855f7 50%,
+    #7b68ee 70%,
+    #4285f4 100%
+  );
+  opacity: 0.25;
+  animation: focusGlow 6s ease-in-out infinite;
+  transition: background 1.5s ease, opacity 1.5s ease;
+}
+
+@keyframes focusGlow {
+  0%, 100% { opacity: 0.2;  transform: scale(1);    }   /* Idle: 30%–50% range */
+  50%      { opacity: 0.3;  transform: scale(1.05); }   /* Focus: 20%–30% range (much calmer) */
+}
+
+/* Ring: calmer, slower pulse — matched to 6s breathing cycle */
+.orb-wrapper.focusing .orb-ring {
+  border-color: rgba(120, 100, 240, 0.12);   /* Purplish tint instead of blue */
+  animation: focusRingPulse 6s ease-in-out infinite;
+  transition: border-color 1.5s ease;
+}
+
+@keyframes focusRingPulse {
+  0%, 100% { opacity: 0.3;  transform: scale(1);    }
+  50%      { opacity: 0.15; transform: scale(1.03); }   /* Only 3% growth (was 8%) */
+}
+
+
+/* ----------------------------------------------------------
+   9c. SPEAKING STATE — Orb is "talking" (ElevenLabs audio playing)
+   
+   When the avatar speaks, the orb gets a rhythmic pulse
+   that simulates mouth movement / speech vibration.
+   This plays ON TOP of the focus state animations.
+   
+   The effect is subtle — just enough to show "I'm talking to you"
+   without being distracting during focus mode.
+   ---------------------------------------------------------- */
+
+/* Main orb: gentle speech pulse (rapid micro-scale changes) */
+.orb-wrapper.speaking .orb {
+  animation: speakingPulse 0.6s ease-in-out infinite;
+}
+
+@keyframes speakingPulse {
+  0%, 100% { transform: scale(1);    filter: brightness(1);    }
+  25%      { transform: scale(1.03); filter: brightness(1.15); }
+  75%      { transform: scale(0.98); filter: brightness(1.05); }
+  /* Quick, irregular scale changes mimic speech rhythm.
+     The asymmetric 1.03/0.98 feels organic, not mechanical. */
+}
+
+/* Glow: pulses brighter while speaking (the orb "radiates" its voice) */
+.orb-wrapper.speaking .orb-glow {
+  opacity: 0.45;
+  animation: speakingGlow 0.8s ease-in-out infinite;
+  transition: opacity 0.3s ease;
+}
+
+@keyframes speakingGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1);    }
+  50%      { opacity: 0.55; transform: scale(1.1);  }
+}
+
+/* Sound wave indicator — appears below the orb during speech */
+.orb-wrapper.speaking::after {
+  content: '🔊';
+  position: absolute;
+  bottom: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  opacity: 0;
+  animation: speakerFadeIn 0.3s ease forwards;
+}
+
+@keyframes speakerFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to   { opacity: 0.7; transform: translateX(-50%) translateY(0); }
+}
+
+
+/* ----------------------------------------------------------
+   9d. FOCUS MODE UI ELEMENTS
+   
+   When focus mode starts:
+   - Status label turns blue
+   - Input area slides away (less clutter)
+   - Task name appears below the title
+   - A subtle "End session" button appears
+   ---------------------------------------------------------- */
+
+/* Status label turns soft blue during focus */
+.status-label.focusing {
+  color: #7b9ef5;
+  letter-spacing: 0.1em;
+  transition: color 1s ease;
+}
+
+/* Input area slides down and fades out */
+.input-area.hidden {
+  animation: slideDownFade 0.6s 0.3s ease forwards;  /* 0.3s delay so flash finishes first */
+  pointer-events: none;  /* Can't click or interact even though it's still in the DOM */
+}
+
+@keyframes slideDownFade {
+  from { opacity: 1; transform: translateY(0);   }
+  to   { opacity: 0; transform: translateY(20px); }  /* Slides 20px down while fading */
+}
+
+/* Task name display — created by JavaScript during focus mode */
+.task-display {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  opacity: 0;
+  animation: fadeInUp 0.8s 0.8s ease forwards;  /* Fades in after input slides away */
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* The actual task name text (bold and bright) */
+.task-display .task-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 
+  "End session" button — intentionally SUBTLE.
+  
+  Why? You don't want the "quit" button screaming at an ADHD user
+  during focus mode. It should be findable when needed, but NOT
+  tempting. Making it visually quiet reduces the impulse to click
+  it prematurely.
+*/
+.end-btn {
+  margin-top: 1.5rem;
+  padding: 0.6rem 1.4rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);   /* Gray text — not attention-grabbing */
+  background: transparent;        /* No background fill */
+  border: 1.5px solid var(--input-border);  /* Thin, subtle border */
+  border-radius: 12px;
+  cursor: pointer;
+  opacity: 0;
+  animation: fadeInUp 0.8s 1.2s ease forwards;  /* Appears last (1.2s delay) */
+  transition: color 0.3s, border-color 0.3s;
+}
+
+/* Only lights up when hovered — reward for intentional action */
+.end-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+
+/* ==========================================================
+   10. RESPONSIVE — Adjustments for Small Screens
+   
+   @media (max-width: 520px) means "if the screen is 520px
+   wide or less (most phones), apply these overrides."
+   ========================================================== */
+@media (max-width: 520px) {
+  :root {
+    --orb-size:  120px;    /* Smaller orb on phones */
+    --glow-size: 200px;
+    --ring-size: 160px;
+  }
+
+  .app-title {
+    font-size: 1.6rem;    /* Smaller title */
+  }
+
+  .input-area {
+    flex-direction: column;  /* Stack input + button vertically instead of side-by-side */
+  }
+
+  .start-btn {
+    width: 100%;           /* Button takes full width when stacked */
+  }
+
+  /* On mobile, the speech bubble moves BELOW the orb instead of to the right */
+  .orb-and-bubble {
+    flex-direction: column;  /* Stack orb + bubble vertically */
+  }
+
+  .speech-bubble {
+    position: relative;     /* No longer absolute — flows naturally below the orb */
+    left: auto;
+    top: auto;
+    transform: none;
+    width: 260px;
+    margin-top: 1rem;
+  }
+
+  /* Move the pointer triangle to the TOP of the bubble (points up at the orb) */
+  .speech-bubble-pointer {
+    left: 50%;
+    top: -8px;
+    transform: translateX(-50%);
+    border-top: none;
+    border-bottom: 8px solid rgba(26, 26, 42, 0.85);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+  }
+
+  /* Simpler animation on mobile (just fade, no horizontal slide) */
+  @keyframes bubbleFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+  }
+}
